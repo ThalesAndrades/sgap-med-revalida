@@ -8,6 +8,13 @@ export interface User {
   role: UserRole;
   created_at: string;
   last_access: string;
+  preferences?: UserPreferences;
+}
+
+export interface UserPreferences {
+  onboarding_completed: boolean;
+  focus_areas: string[];
+  daily_goal_minutes?: number;
 }
 
 export interface Case {

@@ -58,6 +58,25 @@ class MockDB {
     return stored ? JSON.parse(stored) : null;
   }
 
+  async updateUser(userId: string, updates: Partial<User>): Promise<User> {
+    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+    const index = users.findIndex(u => u.id === userId);
+    
+    if (index !== -1) {
+      users[index] = { ...users[index], ...updates };
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      
+      // Update current user session if it's the same user
+      const currentUser = this.getCurrentUser();
+      if (currentUser && currentUser.id === userId) {
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(users[index]));
+      }
+      
+      return users[index];
+    }
+    throw new Error('User not found');
+  }
+
   // Data Methods
   async getCases(): Promise<Case[]> {
     await new Promise(resolve => setTimeout(resolve, 300));

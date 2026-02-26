@@ -56,9 +56,13 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-end border-b border-gray-200 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-inep-primary">Painel do Candidato</h1>
+          <h1 className="text-2xl font-bold text-inep-primary">
+            Olá, Dr(a). {user?.name.split(' ')[0]}
+          </h1>
           <p className="text-clinical-muted mt-1">
-            Acompanhamento de desempenho - Edital nº 46/2025
+            {user?.preferences?.focus_areas?.length 
+              ? `Foco atual: ${user.preferences.focus_areas.join(', ')}` 
+              : 'Vamos começar seus estudos?'}
           </p>
         </div>
         <div className="text-right flex items-center space-x-2">
