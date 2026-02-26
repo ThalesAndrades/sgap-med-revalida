@@ -27,5 +27,5 @@ export default defineConfig({
     }), 
     tsconfigPaths()
   ],
-  base: '/sgap-med-revalida/',
+  // base: '/sgap-med-revalida/', // Removed for custom domain root hosting
 })

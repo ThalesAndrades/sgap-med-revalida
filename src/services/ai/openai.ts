@@ -6,7 +6,7 @@ import { Case, SimulationFeedback } from '../../types';
 // For this prototype/local tool, we use the client-side approach with the key provided by the environment.
 // Ideally, use `import.meta.env.VITE_OPENAI_API_KEY`
 const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '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', // Fallback for demo if env not set
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY || 'sk-proj-****************************************************************', // Masked fallback
   dangerouslyAllowBrowser: true // Required for client-side usage
 });
 

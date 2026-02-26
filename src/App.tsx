@@ -24,7 +24,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <BrowserRouter basename="/sgap-med-revalida">
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
         
