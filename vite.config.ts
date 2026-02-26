@@ -27,4 +27,5 @@ export default defineConfig({
     }), 
     tsconfigPaths()
   ],
+  base: '/sgap-med-revalida/',
 })
