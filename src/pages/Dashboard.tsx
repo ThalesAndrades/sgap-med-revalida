@@ -61,7 +61,13 @@ const Dashboard = () => {
             Acompanhamento de desempenho - Edital nº 46/2025
           </p>
         </div>
-        <div className="text-right">
+        <div className="text-right flex items-center space-x-2">
+          <button 
+            onClick={() => navigate('/assinatura')}
+            className="text-xs font-bold bg-yellow-400 text-yellow-900 px-3 py-1.5 rounded-full hover:bg-yellow-300 transition-colors animate-pulse"
+          >
+            👑 Seja Premium
+          </button>
           <span className="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">
             Status: Ativo
           </span>
