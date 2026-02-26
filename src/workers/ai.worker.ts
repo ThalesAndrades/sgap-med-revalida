@@ -11,6 +11,7 @@ class MedicalIntentClassifier {
 
   static async getInstance(progress_callback: Function | null = null) {
     if (this.instance === null) {
+      // @ts-ignore - Pipeline types are tricky with transformers.js
       this.instance = await pipeline(this.task, this.model, { 
         progress_callback 
       });

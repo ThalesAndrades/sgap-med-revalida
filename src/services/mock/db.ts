@@ -88,6 +88,21 @@ class MockDB {
     return newSim;
   }
 
+  async createSimulation(userId: string, caseId: string): Promise<Simulation> {
+    return this.startSimulation(userId, caseId);
+  }
+
+  async updateSimulation(simId: string, updates: Partial<Simulation>): Promise<Simulation> {
+    const simulations: Simulation[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.SIMULATIONS) || '[]');
+    const index = simulations.findIndex(s => s.id === simId);
+    if (index !== -1) {
+      simulations[index] = { ...simulations[index], ...updates };
+      localStorage.setItem(STORAGE_KEYS.SIMULATIONS, JSON.stringify(simulations));
+      return simulations[index];
+    }
+    throw new Error('Simulation not found');
+  }
+
   async completeSimulation(simId: string, score: number, feedback: any): Promise<Simulation> {
     const simulations: Simulation[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.SIMULATIONS) || '[]');
     const index = simulations.findIndex(s => s.id === simId);
