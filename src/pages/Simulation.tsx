@@ -147,41 +147,39 @@ const Simulation = () => {
     const { intent, confidence } = await classify(text);
     console.log(`AI Classified Intent: ${intent} (${Math.round(confidence * 100)}%)`);
 
-    let response = "Não compreendi. Seja mais claro.";
+    // More natural responses with variations
+    const responses = {
+      'HAND_WASH': ["Certo, higienização realizada.", "Ok, mãos lavadas.", "Procedimento de higiene anotado."],
+      'PHYSICAL_EXAM': ["Paciente posicionado. O que você quer examinar?", "Autorizado. Pode proceder com o exame.", "Certo. O exame físico revela... (descreva o que busca)"],
+      'VITAL_SIGNS': ["Aqui estão os sinais vitais do momento.", "Monitor mostrada os seguintes dados.", "Verifique o cartão de sinais vitais na mesa."],
+      'DIAGNOSIS': ["Hipótese registrada.", "Entendido. Qual seria o tratamento?", "Certo, doutor. E a conduta?"],
+      'MEDICATION': ["Medicação sendo preparada.", "Enfermagem administrando conforme prescrito.", "Ok, droga infundida."],
+      'EXAMS': ["Solicitação enviada ao laboratório.", "Raio-X solicitado. Aguarde a revelação.", "Exames pedidos."],
+      'DISCHARGE': ["Paciente recebeu a receita e entendeu as orientações.", "Alta assinada. Acompanhante ciente.", "Ok, encerramos por aqui?"],
+      'REASSESSMENT': ["Reavaliando... Sinais estáveis.", "Paciente refere melhora após a medicação.", "Quadro clínico inalterado no momento."]
+    };
+
+    const getRandomResponse = (key: keyof typeof responses) => {
+      const options = responses[key];
+      return options[Math.floor(Math.random() * options.length)];
+    };
+
+    let response = "Não compreendi. Poderia repetir de outra forma?";
     
     if (confidence > 0.35) {
-      switch(intent) {
-        case 'HAND_WASH':
-          response = "Mãos lavadas. Pode prosseguir.";
-          break;
-        case 'PHYSICAL_EXAM':
-          response = "Autorizado. Quais dados específicos você busca no exame físico?";
-          break;
-        case 'VITAL_SIGNS':
-          response = "Cartão com sinais vitais entregue. (Verifique mentalmente os dados)";
-          break;
-        case 'DIAGNOSIS':
-          response = "Ciente da hipótese. Qual a conduta terapêutica?";
-          break;
-        case 'MEDICATION':
-          response = "Medicação anotada. Algo mais?";
-          break;
-        case 'EXAMS':
-          response = "Exames solicitados. Aguarde os resultados.";
-          break;
-        case 'DISCHARGE':
-          response = "Paciente orientado e liberado. Estação encerrada?";
-          break;
-        case 'REASSESSMENT':
-          response = "Paciente reavaliado. Mantém quadro estável.";
-          break;
+      // @ts-ignore
+      if (responses[intent]) {
+        // @ts-ignore
+        response = getRandomResponse(intent);
       }
     } else {
         // Fallback for low confidence
         if (text.toLowerCase().includes('dor')) {
-             response = "Paciente refere dor intensa.";
+             response = "O paciente refere dor nota 8.";
+        } else if (text.toLowerCase().includes('ajuda')) {
+             response = "Estou aqui para auxiliar no procedimento.";
         } else {
-             response = "Ciente. Prossiga.";
+             response = "Ciente. Prossiga, doutor.";
         }
     }
     

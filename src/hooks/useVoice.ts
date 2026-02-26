@@ -73,8 +73,21 @@ export const useVoice = ({ onTranscript, language = 'pt-BR' }: UseVoiceProps = {
       setIsSpeaking(true);
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = language;
+      
+      // Try to select a more natural voice if available (e.g., Google Português do Brasil)
+      const voices = window.speechSynthesis.getVoices();
+      const naturalVoice = voices.find(v => v.lang === language && (v.name.includes('Google') || v.name.includes('Luciana') || v.name.includes('Felipe')));
+      if (naturalVoice) {
+        utterance.voice = naturalVoice;
+      }
+
+      // Adjust pitch and rate for more natural prosody
+      utterance.pitch = 1.0;
+      utterance.rate = 1.1; // Slightly faster is often more natural for PT-BR
+      
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
+      
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     }
