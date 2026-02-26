@@ -8,6 +8,8 @@ import Simulation from './pages/Simulation';
 import Learning from './pages/Learning';
 import { useAuthStore } from './store/authStore';
 
+import Subscription from './pages/Subscription';
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, checkSession } = useAuthStore();
   
@@ -27,6 +29,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/assinatura" element={<Subscription />} />
         
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="dashboard" element={<Dashboard />} />
