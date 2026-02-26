@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=JetBrains+Mono:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-clinical-bg text-clinical-text font-sans antialiased selection:bg-inep-light selection:text-white;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight text-inep-primary;
+  }
+}
+
+@layer components {
+  /* Botão Principal de Ação (CTA) - Foco em Conversão */
+  .btn-cta {
+    @apply px-6 py-3 bg-action-cta text-white rounded-lg hover:bg-action-ctaHover hover:shadow-glow hover:-translate-y-0.5 transition-all duration-300 font-bold text-lg shadow-md flex items-center justify-center tracking-wide;
+  }
+
+  .btn-primary {
+    @apply px-5 py-2.5 bg-inep-primary text-white rounded-lg hover:bg-inep-secondary hover:shadow-md active:transform active:scale-95 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
+  }
+  
+  .btn-outline {
+    @apply px-5 py-2.5 border-2 border-inep-primary text-inep-primary rounded-lg hover:bg-inep-primary hover:text-white transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 text-inep-primary hover:bg-inep-accent rounded-lg transition-colors duration-200 font-medium;
+  }
+
+  /* Cards com Efeito de Elevação Suave */
+  .card {
+    @apply bg-white rounded-xl border border-gray-100 shadow-card p-6 transition-all duration-300;
+  }
+  
+  .card-interactive {
+    @apply card hover:shadow-card-hover hover:border-inep-light/20 cursor-pointer hover:-translate-y-1;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inep-primary/50 focus:border-inep-primary transition-all bg-gray-50 focus:bg-white;
+  }
+  
+  /* Scrollbar Customizada */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+  }
+}
+
+/* Utilitários de Animação */
+.animate-enter {
+  animation: enter 0.5s ease-out forwards;
+}
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
