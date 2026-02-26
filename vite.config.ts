@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: './', // Ensures assets are loaded correctly on subdomains/subfolders
   plugins: [
     react(),
     tsconfigPaths(),
