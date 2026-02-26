@@ -182,6 +182,23 @@ const Dashboard = () => {
             </button>
 
             <button 
+              onClick={() => navigate('/simulacao')}
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-lg shadow-lg border border-transparent hover:from-indigo-700 hover:to-purple-700 transition-all text-left group relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-2 opacity-10">
+                <Brain className="w-16 h-16 text-white" />
+              </div>
+              <h3 className="font-semibold text-white flex items-center">
+                <Brain className="w-4 h-4 mr-2" />
+                Desafio IA Infinito
+              </h3>
+              <p className="text-sm text-indigo-100 mt-1">Casos inéditos gerados por Inteligência Artificial</p>
+              <div className="mt-3 flex items-center text-sm text-white font-medium">
+                Gerar Caso <ArrowRight className="ml-1 h-4 w-4" />
+              </div>
+            </button>
+
+            <button 
               onClick={() => navigate('/aprendizagem')}
               className="bg-purple-600 p-4 rounded-lg shadow-sm border border-transparent hover:bg-purple-700 transition-all text-left group"
             >

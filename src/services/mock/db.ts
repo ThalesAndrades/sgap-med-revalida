@@ -1,5 +1,6 @@
 import { User, Case, Finding, Simulation, AuthResponse, KnowledgeTopic } from '../../types';
 import { initialCases, initialFindings, initialUsers, initialTopics } from './seed';
+import { externalTopics } from './externalSeed';
 
 const STORAGE_KEYS = {
   USERS: 'sgap_users',
@@ -37,8 +38,6 @@ class MockDB {
   async login(crm: string, password: string): Promise<AuthResponse> {
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
     
-    // For prototype, password check is simplified or skipped if just testing
-    // In a real mock, we'd check hash. Here we just check CRM for demo.
     const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
     const user = users.find(u => u.crm_provisory === crm);
 
@@ -125,6 +124,22 @@ class MockDB {
       t.summary.toLowerCase().includes(lowerQuery) ||
       t.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
     );
+  }
+
+  // Aggregation Method
+  async importExternalBases(): Promise<number> {
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate fetching
+    const currentTopics: KnowledgeTopic[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TOPICS) || '[]');
+    
+    // Check duplicates
+    const newTopics = externalTopics.filter(ext => !currentTopics.some(curr => curr.id === ext.id));
+    
+    if (newTopics.length > 0) {
+      const updatedTopics = [...currentTopics, ...newTopics];
+      localStorage.setItem(STORAGE_KEYS.TOPICS, JSON.stringify(updatedTopics));
+    }
+    
+    return newTopics.length;
   }
 }
 

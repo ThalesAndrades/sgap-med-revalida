@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useVoice } from '../hooks/useVoice';
+import { useAIClassifier } from '../hooks/useAIClassifier';
 import { mockDB } from '../services/mock/db';
+import { generateCaseWithAI, generateFeedbackWithAI } from '../services/ai/openai';
 import { Case, Finding, Simulation as SimType, SimulationFeedback } from '../types';
-import { Mic, MicOff, Volume2, Timer, AlertOctagon, CheckSquare, XSquare, Play, DoorOpen } from 'lucide-react';
+import { Mic, MicOff, Volume2, Timer, AlertOctagon, CheckSquare, XSquare, Play, DoorOpen, Activity, BrainCircuit, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 const Simulation = () => {
@@ -18,10 +20,17 @@ const Simulation = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [dialogueHistory, setDialogueHistory] = useState<{role: 'doctor' | 'examiner', text: string}[]>([]);
   const [finalFeedback, setFinalFeedback] = useState<SimulationFeedback[]>([]);
+  const [processingVoice, setProcessingVoice] = useState(false);
+  const [isGeneratingCase, setIsGeneratingCase] = useState(false);
+  const [isAnalyzingFeedback, setIsAnalyzingFeedback] = useState(false);
+  const [showGenModal, setShowGenModal] = useState(false);
+  const [genParams, setGenParams] = useState({ specialty: 'Clínica Médica', difficulty: 'intermediate' });
   
   const { isListening, isSpeaking, transcript, startListening, stopListening, speak, supported, cancelSpeech } = useVoice({
     onTranscript: (text) => handleUserVoiceInput(text)
   });
+
+  const { status: aiStatus, classify } = useAIClassifier();
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -75,6 +84,24 @@ const Simulation = () => {
     setReadingTimeLeft(120); // 2 min reading
   };
 
+  const handleGenerateCase = () => {
+    setShowGenModal(true);
+  };
+
+  const confirmGenerateCase = async () => {
+    setShowGenModal(false);
+    setIsGeneratingCase(true);
+    try {
+      const newCase = await generateCaseWithAI(genParams.specialty, genParams.difficulty);
+      setCases(prev => [newCase, ...prev]);
+      handleSelectCase(newCase);
+    } catch (error) {
+      alert('Erro ao gerar caso com IA. Verifique sua chave de API.');
+    } finally {
+      setIsGeneratingCase(false);
+    }
+  };
+
   const handleStartCase = async () => {
     if (!user || !selectedCase) return;
     
@@ -89,61 +116,78 @@ const Simulation = () => {
     speak(introText);
   };
 
-  const generateFeedback = (c: Case): SimulationFeedback[] => {
-    // This mocks the INEP checklist logic
-    // In a real app, this would compare transcript/actions against criteria
-    return [
-      { criterion: "Apresentou-se e checou identificação do paciente", achieved: true, examiner_note: "Realizado corretamente.", points: 0.5 },
-      { criterion: "Lavagem das mãos antes do exame físico", achieved: Math.random() > 0.3, examiner_note: "Item obrigatório de biossegurança.", points: 0.5 },
-      { criterion: "Anamnese: Perguntou sobre início e características dos sintomas", achieved: true, examiner_note: "Boa exploração dos sintomas.", points: 1.5 },
-      { criterion: "Exame Físico: Solicitou sinais vitais completos", achieved: Math.random() > 0.4, examiner_note: "Faltou solicitar temperatura.", points: 1.0 },
-      { criterion: `Hipótese Diagnóstica: ${c.expected_diagnosis[0]}`, achieved: true, examiner_note: "Diagnóstico correto.", points: 2.0 },
-      { criterion: "Conduta: Prescrição adequada conforme PCDT", achieved: Math.random() > 0.5, examiner_note: "Faltou detalhar posologia.", points: 2.5 },
-      { criterion: "Orientações de alta/encaminhamento", achieved: Math.random() > 0.5, examiner_note: "Esclareceu dúvidas do paciente.", points: 2.0 },
-    ];
-  };
-
   const handleFinishSimulation = async () => {
     setIsTimerRunning(false);
     cancelSpeech();
+    setIsAnalyzingFeedback(true);
     
     if (activeSimulation && selectedCase) {
-      const feedback = generateFeedback(selectedCase);
+      // Use AI for dynamic feedback
+      const feedback = await generateFeedbackWithAI(selectedCase, dialogueHistory);
       const score = feedback.reduce((acc, item) => acc + (item.achieved ? item.points : 0), 0);
       
       await mockDB.updateSimulation(activeSimulation.id, {
         end_time: new Date().toISOString(),
         status: 'completed',
-        score: score * 10, // Scale to 100
+        score: Math.min(100, score * 10), // Scale to 100, cap at 100
         feedback: feedback
       });
       
       setFinalFeedback(feedback);
+      setIsAnalyzingFeedback(false);
       setPhase('feedback');
     }
   };
 
-  const handleUserVoiceInput = (text: string) => {
+  const handleUserVoiceInput = async (text: string) => {
     setDialogueHistory(prev => [...prev, { role: 'doctor', text }]);
+    setProcessingVoice(true);
     
-    // Rigorous examiner logic
-    setTimeout(() => {
-      let response = "Ciente.";
-      const lower = text.toLowerCase();
-      
-      if (lower.includes("lavar") && lower.includes("mão")) {
-        response = "Mãos lavadas. Pode prosseguir.";
-      } else if (lower.includes("exame físico") || lower.includes("examinar")) {
-        response = "Quais dados específicos do exame físico você deseja?";
-      } else if (lower.includes("sinais vitais")) {
-        response = "Cartão com sinais vitais entregue. (Verifique mentalmente os dados)";
-      } else if (lower.includes("diagnóstico é") || lower.includes("hipótese")) {
-        response = "Ciente da hipótese. Qual a conduta?";
+    // AI Classification
+    const { intent, confidence } = await classify(text);
+    console.log(`AI Classified Intent: ${intent} (${Math.round(confidence * 100)}%)`);
+
+    let response = "Não compreendi. Seja mais claro.";
+    
+    if (confidence > 0.35) {
+      switch(intent) {
+        case 'HAND_WASH':
+          response = "Mãos lavadas. Pode prosseguir.";
+          break;
+        case 'PHYSICAL_EXAM':
+          response = "Autorizado. Quais dados específicos você busca no exame físico?";
+          break;
+        case 'VITAL_SIGNS':
+          response = "Cartão com sinais vitais entregue. (Verifique mentalmente os dados)";
+          break;
+        case 'DIAGNOSIS':
+          response = "Ciente da hipótese. Qual a conduta terapêutica?";
+          break;
+        case 'MEDICATION':
+          response = "Medicação anotada. Algo mais?";
+          break;
+        case 'EXAMS':
+          response = "Exames solicitados. Aguarde os resultados.";
+          break;
+        case 'DISCHARGE':
+          response = "Paciente orientado e liberado. Estação encerrada?";
+          break;
+        case 'REASSESSMENT':
+          response = "Paciente reavaliado. Mantém quadro estável.";
+          break;
       }
-      
-      setDialogueHistory(prev => [...prev, { role: 'examiner', text: response }]);
-      speak(response);
-    }, 1500);
+    } else {
+        // Fallback for low confidence
+        if (text.toLowerCase().includes('dor')) {
+             response = "Paciente refere dor intensa.";
+        } else {
+             response = "Ciente. Prossiga.";
+        }
+    }
+    
+    setProcessingVoice(false);
+    setDialogueHistory(prev => [...prev, { role: 'examiner', text: response }]);
+    speak(response);
   };
 
   // --- RENDERERS ---
@@ -153,9 +197,27 @@ const Simulation = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-inep-primary">Simulação Real (Modo Prova)</h1>
-          <div className="bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm font-bold flex items-center">
-             <AlertOctagon className="w-4 h-4 mr-2" />
-             Alta Pressão: 10 Minutos
+          <div className="flex items-center space-x-3">
+             {aiStatus.status === 'downloading' && (
+                <div className="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center animate-pulse">
+                   <Activity className="w-3 h-3 mr-1" />
+                   {aiStatus.message}
+                </div>
+             )}
+             {aiStatus.status === 'ready' && (
+                <div className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full flex items-center">
+                   <BrainCircuit className="w-3 h-3 mr-1" />
+                   IA Local Pronta
+                </div>
+             )}
+             <button 
+               onClick={handleGenerateCase}
+               disabled={isGeneratingCase}
+               className="btn-cta text-sm py-2 px-4 flex items-center shadow-glow"
+             >
+               <Sparkles className={`w-4 h-4 mr-2 ${isGeneratingCase ? 'animate-spin' : ''}`} />
+               {isGeneratingCase ? 'Gerando Caso...' : 'Gerar Caso com IA'}
+             </button>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-6">
@@ -176,6 +238,63 @@ const Simulation = () => {
             </div>
           ))}
         </div>
+
+        {showGenModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+             <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md animate-in fade-in zoom-in duration-200">
+               <h3 className="text-xl font-bold mb-4 flex items-center text-inep-primary">
+                 <Sparkles className="w-5 h-5 mr-2" />
+                 Configurar Caso IA
+               </h3>
+               
+               <div className="space-y-4">
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">Especialidade</label>
+                   <select 
+                     className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-inep-primary outline-none"
+                     value={genParams.specialty}
+                     onChange={(e) => setGenParams(prev => ({...prev, specialty: e.target.value}))}
+                   >
+                     <option>Clínica Médica</option>
+                     <option>Cirurgia Geral</option>
+                     <option>Pediatria</option>
+                     <option>Ginecologia e Obstetrícia</option>
+                     <option>Medicina de Família</option>
+                     <option>Medicina de Emergência</option>
+                   </select>
+                 </div>
+                 
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">Dificuldade</label>
+                   <select 
+                     className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-inep-primary outline-none"
+                     value={genParams.difficulty}
+                     onChange={(e) => setGenParams(prev => ({...prev, difficulty: e.target.value}))}
+                   >
+                     <option value="basic">Básico (Internato)</option>
+                     <option value="intermediate">Intermediário (Generalista)</option>
+                     <option value="advanced">Avançado (Residência)</option>
+                   </select>
+                 </div>
+
+                 <div className="flex justify-end space-x-3 mt-6">
+                   <button 
+                     onClick={() => setShowGenModal(false)}
+                     className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
+                   >
+                     Cancelar
+                   </button>
+                   <button 
+                     onClick={confirmGenerateCase}
+                     className="bg-inep-primary text-white px-6 py-2 rounded-lg font-bold hover:bg-inep-secondary shadow-lg transform active:scale-95 transition-all"
+                   >
+                     Gerar Agora
+                   </button>
+                 </div>
+               </div>
+             </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -230,7 +349,7 @@ const Simulation = () => {
             <span className="text-gray-500 text-xl mb-1">/ {maxScore.toFixed(1)} pontos</span>
           </div>
           
-          <h3 className="font-bold text-lg mb-4 border-b pb-2">Checklist de Avaliação (Padrão INEP)</h3>
+          <h3 className="font-bold text-lg mb-4 border-b pb-2">Checklist de Avaliação (Gerado por IA)</h3>
           <div className="space-y-3">
             {finalFeedback.map((item, idx) => (
               <div key={idx} className={`p-4 rounded-lg border flex justify-between items-start ${
@@ -284,9 +403,17 @@ const Simulation = () => {
         </div>
         <button 
           onClick={handleFinishSimulation}
-          className="bg-red-600 hover:bg-red-700 text-white text-xs px-4 py-2 rounded uppercase font-bold tracking-wider"
+          className="bg-red-600 hover:bg-red-700 text-white text-xs px-4 py-2 rounded uppercase font-bold tracking-wider flex items-center"
+          disabled={isAnalyzingFeedback}
         >
-          Encerrar Caso
+          {isAnalyzingFeedback ? (
+            <>
+              <BrainCircuit className="w-4 h-4 mr-2 animate-spin" />
+              Corrigindo...
+            </>
+          ) : (
+            'Encerrar Caso'
+          )}
         </button>
       </div>
 
@@ -307,6 +434,14 @@ const Simulation = () => {
               </div>
             </div>
           ))}
+          {processingVoice && (
+            <div className="flex justify-start">
+               <div className="bg-gray-200 text-gray-500 p-4 rounded-xl shadow-sm animate-pulse flex items-center">
+                 <BrainCircuit className="w-4 h-4 mr-2 animate-spin text-purple-600" />
+                 IA analisando resposta...
+               </div>
+            </div>
+          )}
         </div>
 
         {/* Voice Controls */}
@@ -321,7 +456,7 @@ const Simulation = () => {
             
             <button
                onClick={isListening ? stopListening : startListening}
-               disabled={!supported || isSpeaking}
+               disabled={!supported || isSpeaking || isAnalyzingFeedback}
                className={`w-full py-6 rounded-2xl flex items-center justify-center text-xl font-bold transition-all shadow-lg ${
                  isListening 
                    ? 'bg-red-600 text-white animate-pulse ring-4 ring-red-200' 

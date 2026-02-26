@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Brain, Activity, Heart, Stethoscope, Baby, Pill, Search, ChevronRight, Hash, FileText } from 'lucide-react';
+import { BookOpen, Brain, Activity, Heart, Stethoscope, Baby, Pill, Search, ChevronRight, Hash, FileText, Database, RefreshCw, Sparkles, X } from 'lucide-react';
 import { mockDB } from '../services/mock/db';
+import { explainTopicWithAI } from '../services/ai/openai';
 import { KnowledgeTopic } from '../types';
 
 const Learning = () => {
@@ -8,6 +9,8 @@ const Learning = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [topics, setTopics] = useState<KnowledgeTopic[]>([]);
   const [filteredTopics, setFilteredTopics] = useState<KnowledgeTopic[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [explanation, setExplanation] = useState<{ topicId: string, content: string | null, isLoading: boolean } | null>(null);
 
   useEffect(() => {
     const loadTopics = async () => {
@@ -18,6 +21,15 @@ const Learning = () => {
     loadTopics();
   }, []);
 
+  const handleImportExternal = async () => {
+    setIsImporting(true);
+    const count = await mockDB.importExternalBases();
+    const data = await mockDB.getTopics();
+    setTopics(data);
+    setIsImporting(false);
+    alert(`${count} novos tópicos importados de bases externas (Medscape, UpToDate, etc.)!`);
+  };
+
   useEffect(() => {
     let result = topics;
     
@@ -26,10 +38,8 @@ const Learning = () => {
       const typeMap: Record<string, string> = {
         'mnemonics': 'mnemonic',
         'flowcharts': 'flowchart',
-        'reflexive': 'concept' // Mapping concept to reflexive for now or keep separate
+        'reflexive': 'concept' 
       };
-      // Note: In seed we have protocol/concept/mnemonic/flowchart. 
-      // Let's adjust tabs to match content better or group them.
       if (activeTab === 'mnemonics') result = result.filter(t => t.content_type === 'mnemonic');
       if (activeTab === 'flowcharts') result = result.filter(t => t.content_type === 'flowchart' || t.content_type === 'protocol');
       if (activeTab === 'reflexive') result = result.filter(t => t.content_type === 'concept');
@@ -47,6 +57,13 @@ const Learning = () => {
 
     setFilteredTopics(result);
   }, [activeTab, searchQuery, topics]);
+
+  const handleExplain = async (topic: KnowledgeTopic) => {
+    setExplanation({ topicId: topic.id, content: null, isLoading: true });
+    const context = JSON.stringify(topic.content);
+    const result = await explainTopicWithAI(topic.title, context);
+    setExplanation({ topicId: topic.id, content: result, isLoading: false });
+  };
 
   const getIconForCategory = (category: string) => {
     switch(category) {
@@ -68,14 +85,26 @@ const Learning = () => {
           </p>
         </div>
         
-        <div className="w-full md:w-auto flex flex-col md:flex-row gap-3">
-          <div className="relative">
+        <div className="flex gap-2">
+           <button 
+             onClick={handleImportExternal}
+             disabled={isImporting}
+             className="btn-outline flex items-center text-sm"
+           >
+             <RefreshCw className={`w-4 h-4 mr-2 ${isImporting ? 'animate-spin' : ''}`} />
+             {isImporting ? 'Importando...' : 'Atualizar Bases Externas'}
+           </button>
+        </div>
+      </div>
+
+      <div className="w-full md:w-auto flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
             <input 
               type="text" 
               placeholder="Buscar por tema, doença ou tag..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-inep-primary focus:border-transparent w-full md:w-64"
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-inep-primary focus:border-transparent w-full"
             />
             <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
           </div>
@@ -107,7 +136,6 @@ const Learning = () => {
             </button>
           </div>
         </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left Content Area - Topics Grid */}
@@ -175,6 +203,13 @@ const Learning = () => {
                       <Hash className="w-3 h-3 mr-1 opacity-50" /> {tag}
                     </span>
                   ))}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleExplain(topic); }}
+                    className="ml-auto flex items-center text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold hover:bg-purple-200 transition-colors"
+                  >
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Explicar com IA
+                  </button>
                 </div>
               </div>
             ))
@@ -219,6 +254,42 @@ const Learning = () => {
           </div>
         </div>
       </div>
+
+      {explanation && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b flex justify-between items-center bg-gradient-to-r from-purple-600 to-indigo-600 rounded-t-2xl text-white">
+              <h3 className="text-xl font-bold flex items-center">
+                <Brain className="w-6 h-6 mr-2" />
+                Tutor Inteligente
+              </h3>
+              <button 
+                onClick={() => setExplanation(null)}
+                className="hover:bg-white/20 p-2 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-8 overflow-y-auto prose prose-purple max-w-none">
+              {explanation.isLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+                  <p className="text-gray-500 font-medium animate-pulse">Consultando a base de conhecimento...</p>
+                </div>
+              ) : (
+                <div className="whitespace-pre-wrap">
+                  {explanation.content}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t bg-gray-50 rounded-b-2xl text-center text-xs text-gray-500">
+              O conteúdo é gerado por IA e deve ser conferido com a bibliografia oficial.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
