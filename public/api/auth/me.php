@@ -8,7 +8,7 @@ $cfg = load_app_config();
 handle_cors(allowed_origins_from_config($cfg));
 require_method('GET');
 
-$user = get_current_user();
+$user = auth_current_user();
 if (!$user) {
   send_json(200, ['user' => null]);
 }

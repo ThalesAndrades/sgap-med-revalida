@@ -178,7 +178,7 @@ function create_session(string $userId): string {
   return $token;
 }
 
-function get_current_user(): ?array {
+function auth_current_user(): ?array {
   $token = read_session_token();
   if ($token === '') return null;
   $pdo = db();
