@@ -16,7 +16,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
   send_json(400, ['error' => 'E-mail inválido']);
 }
 
-if (mb_strlen($password) < 8) {
+if ((function_exists('mb_strlen') ? mb_strlen($password) : strlen($password)) < 8) {
   send_json(400, ['error' => 'Senha inválida']);
 }
 
@@ -38,4 +38,3 @@ send_json(200, [
     'created_at' => (string)$row['created_at'],
   ]
 ]);
-

@@ -40,7 +40,8 @@ function read_json_body(): array {
 }
 
 function normalize_email(string $email): string {
-  $email = trim(mb_strtolower($email));
+  $email = trim($email);
+  $email = function_exists('mb_strtolower') ? mb_strtolower($email) : strtolower($email);
   return $email;
 }
 
@@ -87,10 +88,14 @@ function db(): PDO {
     @mkdir($storageDir, 0755, true);
   }
   $dbPath = $storageDir . '/app.sqlite';
-  $pdo = new PDO('sqlite:' . $dbPath, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-  ]);
+  try {
+    $pdo = new PDO('sqlite:' . $dbPath, null, null, [
+      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+      PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+  } catch (Throwable $e) {
+    send_json(500, ['error' => 'Persistência indisponível no servidor']);
+  }
 
   $pdo->exec('PRAGMA journal_mode = WAL;');
   $pdo->exec('PRAGMA foreign_keys = ON;');
