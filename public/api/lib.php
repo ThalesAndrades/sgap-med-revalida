@@ -94,8 +94,8 @@ function db() {
   $dbPath = $storageDir . '/app.sqlite';
   try {
     $pdo = new PDO('sqlite:' . $dbPath, null, null, [
-      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-      PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+      constant('PDO::ATTR_ERRMODE') => constant('PDO::ERRMODE_EXCEPTION'),
+      constant('PDO::ATTR_DEFAULT_FETCH_MODE') => constant('PDO::FETCH_ASSOC'),
     ]);
   } catch (Throwable $e) {
     send_json(500, ['error' => 'Persistência indisponível no servidor']);
@@ -210,4 +210,3 @@ function is_email_whitelisted(string $email): bool {
   if (!$row) return false;
   return (int)$row['active'] === 1;
 }
-
