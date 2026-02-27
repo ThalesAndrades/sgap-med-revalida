@@ -57,7 +57,7 @@ const Dashboard = () => {
       <div className="flex justify-between items-end border-b border-gray-200 pb-4">
         <div>
           <h1 className="text-2xl font-bold text-inep-primary">
-            Olá, Dr(a). {user?.name.split(' ')[0]}
+            Olá, Dr(a). {user?.name?.split(' ')[0] || 'Bem-vindo'}
           </h1>
           <p className="text-clinical-muted mt-1">
             {user?.preferences?.focus_areas?.length 
