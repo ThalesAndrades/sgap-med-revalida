@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { mockDB } from '../services/mock/db';
 import { Check, ArrowRight, Brain, Stethoscope, Baby, Activity, Heart, Users } from 'lucide-react';
 
 const specialties = [
@@ -14,7 +13,7 @@ const specialties = [
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { user, checkSession } = useAuthStore();
+  const { user, updatePreferences } = useAuthStore();
   const [step, setStep] = useState(1);
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,14 +30,11 @@ const Onboarding = () => {
     if (!user) return;
     setIsSubmitting(true);
     try {
-      await mockDB.updateUser(user.id, {
-        preferences: {
-          onboarding_completed: true,
-          focus_areas: selectedSpecialties,
-          daily_goal_minutes: 30
-        }
+      updatePreferences({
+        onboarding_completed: true,
+        focus_areas: selectedSpecialties,
+        daily_goal_minutes: 30
       });
-      checkSession(); // Refresh user state
       navigate('/dashboard');
     } catch (error) {
       console.error('Failed to save preferences', error);

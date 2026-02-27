@@ -70,8 +70,8 @@ const Layout = () => {
               <User className="h-5 w-5" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-white">{user?.name}</p>
-              <p className="text-xs text-blue-300">CRM: {user?.crm_provisory}</p>
+              <p className="text-sm font-medium text-white">{user?.name || 'Membro Beta'}</p>
+              <p className="text-xs text-blue-300">{user?.email}</p>
             </div>
           </div>
           <button

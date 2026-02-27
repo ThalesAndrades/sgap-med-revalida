@@ -3,11 +3,10 @@ export type UserRole = 'candidate' | 'examiner' | 'admin';
 export interface User {
   id: string;
   email: string;
-  crm_provisory: string;
-  name: string;
-  role: UserRole;
-  created_at: string;
-  last_access: string;
+  name?: string;
+  role?: UserRole;
+  created_at?: string;
+  last_access?: string;
   preferences?: UserPreferences;
 }
 

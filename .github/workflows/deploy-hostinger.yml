@@ -31,6 +31,11 @@ jobs:
           'openrouter_api_key' => getenv('OPENROUTER_API_KEY') ?: '',
           'openrouter_site_url' => getenv('OPENROUTER_SITE_URL') ?: '',
           'gemini_api_key' => getenv('GEMINI_API_KEY') ?: '',
+          'admin_token' => getenv('ADMIN_TOKEN') ?: '',
+          'allowed_origins' => array_values(array_filter([
+            getenv('ALLOWED_ORIGIN_1') ?: '',
+            getenv('ALLOWED_ORIGIN_2') ?: ''
+          ])),
         ];
         
         PHP
@@ -39,6 +44,9 @@ jobs:
         OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         OPENROUTER_SITE_URL: ${{ vars.OPENROUTER_SITE_URL }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        ALLOWED_ORIGIN_1: ${{ vars.ALLOWED_ORIGIN_1 }}
+        ALLOWED_ORIGIN_2: ${{ vars.ALLOWED_ORIGIN_2 }}
 
     - name: 🏗️ Build Project
       run: npm run build
@@ -56,3 +64,13 @@ jobs:
         local-dir: ./dist/
         server-dir: ./app/
         dangerous-clean-slate: true
+
+    - name: 📂 Sync landing files (root domain)
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./hostinger/root/
+        server-dir: ./
+        dangerous-clean-slate: false

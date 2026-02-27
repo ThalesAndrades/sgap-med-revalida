@@ -19,12 +19,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   if (!user) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Redirect to onboarding if not completed and not already on the onboarding page
-  if (!user.preferences?.onboarding_completed && window.location.pathname !== '/onboarding') {
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
@@ -34,7 +29,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Login />} />
         
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="onboarding" element={<Onboarding />} />

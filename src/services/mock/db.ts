@@ -1,14 +1,12 @@
-import { User, Case, Finding, Simulation, AuthResponse, KnowledgeTopic } from '../../types';
-import { initialCases, initialFindings, initialUsers, initialTopics } from './seed';
+import { Case, Finding, Simulation, KnowledgeTopic } from '../../types';
+import { initialCases, initialFindings, initialTopics } from './seed';
 import { externalTopics } from './externalSeed';
 
 const STORAGE_KEYS = {
-  USERS: 'sgap_users',
   CASES: 'sgap_cases',
   FINDINGS: 'sgap_findings',
   SIMULATIONS: 'sgap_simulations',
   TOPICS: 'sgap_topics',
-  CURRENT_USER: 'sgap_current_user',
 };
 
 class MockDB {
@@ -17,9 +15,6 @@ class MockDB {
   }
 
   private init() {
-    if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(initialUsers));
-    }
     if (!localStorage.getItem(STORAGE_KEYS.CASES)) {
       localStorage.setItem(STORAGE_KEYS.CASES, JSON.stringify(initialCases));
     }
@@ -32,49 +27,6 @@ class MockDB {
     if (!localStorage.getItem(STORAGE_KEYS.SIMULATIONS)) {
       localStorage.setItem(STORAGE_KEYS.SIMULATIONS, JSON.stringify([]));
     }
-  }
-
-  // Auth Methods
-  async login(crm: string, password: string): Promise<AuthResponse> {
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-    
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-    const user = users.find(u => u.crm_provisory === crm);
-
-    if (user) {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-      return { user, token: 'mock-jwt-token-123', error: undefined };
-    }
-
-    return { user: null, token: null, error: 'Credenciais inválidas' };
-  }
-
-  async logout(): Promise<void> {
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-  }
-
-  getCurrentUser(): User | null {
-    const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    return stored ? JSON.parse(stored) : null;
-  }
-
-  async updateUser(userId: string, updates: Partial<User>): Promise<User> {
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-    const index = users.findIndex(u => u.id === userId);
-    
-    if (index !== -1) {
-      users[index] = { ...users[index], ...updates };
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-      
-      // Update current user session if it's the same user
-      const currentUser = this.getCurrentUser();
-      if (currentUser && currentUser.id === userId) {
-        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(users[index]));
-      }
-      
-      return users[index];
-    }
-    throw new Error('User not found');
   }
 
   // Data Methods

@@ -1,16 +1,6 @@
 import { User, Case, Finding, KnowledgeTopic } from '../../types';
 
-export const initialUsers: User[] = [
-  {
-    id: 'user-001',
-    email: 'candidato@teste.com',
-    crm_provisory: '12345/P',
-    name: 'Dr. Candidato Teste',
-    role: 'candidate',
-    created_at: new Date().toISOString(),
-    last_access: new Date().toISOString(),
-  }
-];
+export const initialUsers: User[] = [];
 
 export const initialCases: Case[] = [
   // 1. Cirurgia - Trauma (ATLS)
