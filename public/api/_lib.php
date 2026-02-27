@@ -79,9 +79,13 @@ function allowed_origins_from_config(array $cfg): array {
   return array_values(array_unique($out));
 }
 
-function db(): PDO {
+function db() {
   static $pdo = null;
-  if ($pdo instanceof PDO) return $pdo;
+  if ($pdo) return $pdo;
+
+  if (!class_exists('PDO')) {
+    send_json(500, ['error' => 'PDO não está disponível no servidor']);
+  }
 
   $storageDir = __DIR__ . '/storage';
   if (!is_dir($storageDir)) {
