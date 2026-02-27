@@ -29,6 +29,11 @@ if (!$row || !password_verify($password, (string)$row['password_hash'])) {
   send_json(401, ['error' => 'Credenciais inválidas']);
 }
 
+$normalized = normalize_email((string)$row['email']);
+if (!is_email_whitelisted($normalized)) {
+  send_json(403, ['error' => 'Seu acesso foi revogado. Fale com o suporte para liberar novamente.']);
+}
+
 create_session((string)$row['id']);
 
 send_json(200, [

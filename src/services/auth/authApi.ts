@@ -51,3 +51,17 @@ export async function authMe(): Promise<AuthUser | null> {
   return data.user;
 }
 
+export async function authRequestPasswordReset(email: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>('/api/auth/request_password_reset.php', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+}
+
+export async function authResetPassword(token: string, password: string): Promise<AuthUser> {
+  const data = await apiFetch<{ user: AuthUser }>('/api/auth/reset_password.php', {
+    method: 'POST',
+    body: JSON.stringify({ token, password })
+  });
+  return data.user;
+}

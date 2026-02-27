@@ -133,7 +133,61 @@ function db() {
     created_at TEXT NOT NULL
   );');
 
+  $pdo->exec('CREATE TABLE IF NOT EXISTS password_resets (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    used_at TEXT
+  );');
+
   return $pdo;
+}
+
+function app_base_url_from_request(): string {
+  $host = $_SERVER['HTTP_HOST'] ?? 'app.revalidaai.med.br';
+  return 'https://' . $host;
+}
+
+function create_password_reset(string $userId): string {
+  $pdo = db();
+  $token = bin2hex(random_bytes(32));
+  $tokenHash = hash('sha256', $token);
+  $createdAt = now_iso();
+  $expiresAt = gmdate('c', time() + 60 * 60);
+  $stmt = $pdo->prepare('INSERT INTO password_resets (token_hash, user_id, expires_at, created_at, used_at) VALUES (:h, :u, :e, :c, NULL)');
+  $stmt->execute([':h' => $tokenHash, ':u' => $userId, ':e' => $expiresAt, ':c' => $createdAt]);
+  return $token;
+}
+
+function consume_password_reset(string $token): ?string {
+  $token = trim($token);
+  if ($token === '') return null;
+  $pdo = db();
+  $tokenHash = hash('sha256', $token);
+  $stmt = $pdo->prepare('SELECT user_id, expires_at, used_at FROM password_resets WHERE token_hash = :h LIMIT 1');
+  $stmt->execute([':h' => $tokenHash]);
+  $row = $stmt->fetch();
+  if (!$row) return null;
+  if (!empty($row['used_at'])) return null;
+  if (strtotime((string)$row['expires_at']) <= time()) return null;
+
+  $pdo->prepare('UPDATE password_resets SET used_at = :u WHERE token_hash = :h')->execute([':u' => now_iso(), ':h' => $tokenHash]);
+  return (string)$row['user_id'];
+}
+
+function send_password_reset_email(string $email, string $resetUrl): bool {
+  $email = trim($email);
+  if ($email === '') return false;
+
+  $subject = 'Revalida AI — redefinir senha';
+  $body = "Você solicitou redefinição de senha.\n\nAbra o link abaixo para criar uma nova senha (válido por 1 hora):\n\n" . $resetUrl . "\n\nSe você não solicitou, ignore este e-mail.";
+
+  $headers = [];
+  $headers[] = 'From: Revalida AI <no-reply@revalidaai.med.br>';
+  $headers[] = 'Content-Type: text/plain; charset=UTF-8';
+
+  return @mail($email, $subject, $body, implode("\r\n", $headers));
 }
 
 function session_cookie_name(): string {
