@@ -3,6 +3,7 @@ import { useVoice } from '../hooks/useVoice';
 import { mockDB } from '../services/mock/db';
 import { Case, Finding } from '../types';
 import { Mic, MicOff, Volume2, Play, AlertCircle, CheckCircle } from 'lucide-react';
+import VoiceSettings from '../components/VoiceSettings';
 
 const Training = () => {
   const [cases, setCases] = useState<Case[]>([]);
@@ -10,8 +11,9 @@ const Training = () => {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [revealedFindings, setRevealedFindings] = useState<string[]>([]);
   const [dialogueHistory, setDialogueHistory] = useState<{role: 'doctor' | 'examiner', text: string}[]>([]);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   
-  const { isListening, isSpeaking, transcript, startListening, stopListening, speak, supported } = useVoice({
+  const { isListening, isSpeaking, transcript, startListening, stopListening, speak, supported, voices, ttsSettings, setTTSSettings } = useVoice({
     onTranscript: (text) => handleUserVoiceInput(text)
   });
 
@@ -121,10 +123,30 @@ const Training = () => {
             <h2 className="font-bold">{selectedCase.title}</h2>
             <p className="text-xs text-blue-200">{selectedCase.specialty}</p>
           </div>
-          <button onClick={() => setSelectedCase(null)} className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30">
-            Trocar Caso
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowVoiceSettings(true)}
+              className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30 flex items-center"
+              type="button"
+            >
+              <Volume2 className="h-3 w-3 mr-1" />
+              Voz
+            </button>
+            <button onClick={() => setSelectedCase(null)} className="text-xs bg-white/20 px-2 py-1 rounded hover:bg-white/30">
+              Trocar Caso
+            </button>
+          </div>
         </div>
+
+        <VoiceSettings
+          isOpen={showVoiceSettings}
+          onClose={() => setShowVoiceSettings(false)}
+          voices={voices}
+          language="pt-BR"
+          ttsSettings={ttsSettings}
+          setTTSSettings={setTTSSettings}
+          onTest={() => speak('Teste de voz. No treinamento, ajuste para ficar mais humano e confortável.')}
+        />
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" ref={scrollRef}>
           {dialogueHistory.map((msg, idx) => (

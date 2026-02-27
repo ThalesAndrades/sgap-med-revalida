@@ -7,6 +7,7 @@ import { generateCaseWithAI, generateFeedbackWithAI } from '../services/ai/opena
 import { Case, Finding, Simulation as SimType, SimulationFeedback } from '../types';
 import { Mic, MicOff, Volume2, Timer, AlertOctagon, CheckSquare, XSquare, Play, DoorOpen, Activity, BrainCircuit, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import VoiceSettings from '../components/VoiceSettings';
 
 const Simulation = () => {
   const { user } = useAuthStore();
@@ -25,8 +26,9 @@ const Simulation = () => {
   const [isAnalyzingFeedback, setIsAnalyzingFeedback] = useState(false);
   const [showGenModal, setShowGenModal] = useState(false);
   const [genParams, setGenParams] = useState({ specialty: 'Clínica Médica', difficulty: 'intermediate' });
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   
-  const { isListening, isSpeaking, transcript, startListening, stopListening, speak, supported, cancelSpeech } = useVoice({
+  const { isListening, isSpeaking, transcript, startListening, stopListening, speak, supported, cancelSpeech, voices, ttsSettings, setTTSSettings } = useVoice({
     onTranscript: (text) => handleUserVoiceInput(text)
   });
 
@@ -111,7 +113,18 @@ const Simulation = () => {
     setIsTimerRunning(true);
     setTimeLeft(600);
     
-    const introText = "Você entrou na sala. O tempo de 10 minutos começou a contar. O paciente e o examinador aguardam sua abordagem.";
+    const getToolsForSpecialty = (specialty: string) => {
+      const s = specialty.toLowerCase();
+      if (s.includes('emerg')) return ['Monitor multiparamétrico', 'Oximetria', 'Oxigênio', 'Acesso venoso', 'Carrinho de parada', 'ECG', 'Glicosímetro'];
+      if (s.includes('cardio')) return ['Estetoscópio', 'Esfigmomanômetro', 'Oxímetro', 'ECG', 'Acesso venoso'];
+      if (s.includes('pedi')) return ['Estetoscópio', 'Oxímetro', 'Termômetro', 'Balança pediátrica', 'Cartão de vacinação'];
+      if (s.includes('gine') || s.includes('obst')) return ['Espéculo', 'Sonar/Doppler fetal', 'Gestograma', 'Material de toque', 'Cartão de pré-natal'];
+      if (s.includes('cirur')) return ['Campo estéril', 'Material de sutura', 'Instrumental básico', 'Curativos', 'Analgesia'];
+      return ['Estetoscópio', 'Esfigmomanômetro', 'Oxímetro', 'Termômetro', 'Acesso a prescrições e solicitações'];
+    };
+
+    const tools = getToolsForSpecialty(selectedCase.specialty);
+    const introText = `Você entrou na estação. Tempo total: 10 minutos.\n\nContexto: ${selectedCase.specialty}.\n\nVocê tem à mão: ${tools.join(', ')}.\n\nVocê pode solicitar anamnese, exame físico e exames complementares. Ao final, verbalize hipótese diagnóstica e conduta. Pode começar.`;
     setDialogueHistory([{ role: 'examiner', text: introText }]);
     speak(introText);
   };
@@ -395,6 +408,14 @@ const Simulation = () => {
           <h2 className="font-bold text-lg">{selectedCase?.title}</h2>
           <span className="text-xs text-gray-400">Modo de Avaliação Oficial</span>
         </div>
+        <button
+          onClick={() => setShowVoiceSettings(true)}
+          className="hidden md:flex items-center text-xs bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg"
+          type="button"
+        >
+          <Volume2 className="w-4 h-4 mr-2" />
+          Voz
+        </button>
         <div className={`flex items-center text-3xl font-mono font-bold ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
           <Timer className="w-8 h-8 mr-3" />
           {formatTime(timeLeft)}
@@ -414,6 +435,16 @@ const Simulation = () => {
           )}
         </button>
       </div>
+
+      <VoiceSettings
+        isOpen={showVoiceSettings}
+        onClose={() => setShowVoiceSettings(false)}
+        voices={voices}
+        language="pt-BR"
+        ttsSettings={ttsSettings}
+        setTTSSettings={setTTSSettings}
+        onTest={() => speak('Teste de voz do examinador. Ajuste velocidade e tom para ficar mais natural.')}
+      />
 
       {/* Main Interaction Area */}
       <div className="flex-1 bg-gray-100 flex flex-col overflow-hidden relative">

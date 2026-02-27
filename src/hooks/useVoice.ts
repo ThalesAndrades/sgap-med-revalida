@@ -5,11 +5,48 @@ interface UseVoiceProps {
   language?: string;
 }
 
+type TTSSettings = {
+  voiceURI: string | null;
+  rate: number;
+  pitch: number;
+  volume: number;
+};
+
+const TTS_STORAGE_KEY = 'sgap_tts_settings_v1';
+
+const loadTTSSettings = (): TTSSettings => {
+  try {
+    const raw = localStorage.getItem(TTS_STORAGE_KEY);
+    if (!raw) {
+      return { voiceURI: null, rate: 1.05, pitch: 1.0, volume: 1.0 };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      voiceURI: typeof parsed.voiceURI === 'string' ? parsed.voiceURI : null,
+      rate: typeof parsed.rate === 'number' ? parsed.rate : 1.05,
+      pitch: typeof parsed.pitch === 'number' ? parsed.pitch : 1.0,
+      volume: typeof parsed.volume === 'number' ? parsed.volume : 1.0,
+    };
+  } catch {
+    return { voiceURI: null, rate: 1.05, pitch: 1.0, volume: 1.0 };
+  }
+};
+
+const pickBestVoice = (voices: SpeechSynthesisVoice[], language: string) => {
+  const langMatches = voices.filter(v => (v.lang || '').toLowerCase().startsWith(language.toLowerCase().slice(0, 2)));
+  const exact = langMatches.filter(v => v.lang === language);
+  const pool = exact.length ? exact : langMatches;
+  const preferred = pool.find(v => /google|natural|luciana|felipe|microsoft/i.test(v.name));
+  return preferred || pool.find(v => v.default) || pool[0] || null;
+};
+
 export const useVoice = ({ onTranscript, language = 'pt-BR' }: UseVoiceProps = {}) => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [supported, setSupported] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [ttsSettings, setTTSSettings] = useState<TTSSettings>(() => loadTTSSettings());
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -52,6 +89,32 @@ export const useVoice = ({ onTranscript, language = 'pt-BR' }: UseVoiceProps = {
     };
   }, [language, onTranscript]);
 
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+
+    const load = () => {
+      const list = window.speechSynthesis.getVoices();
+      setVoices(Array.isArray(list) ? list : []);
+    };
+
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+
+    return () => {
+      if (window.speechSynthesis.onvoiceschanged === load) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TTS_STORAGE_KEY, JSON.stringify(ttsSettings));
+    } catch {
+      return;
+    }
+  }, [ttsSettings]);
+
   const startListening = useCallback(() => {
     if (recognitionRef.current) {
       try {
@@ -68,22 +131,23 @@ export const useVoice = ({ onTranscript, language = 'pt-BR' }: UseVoiceProps = {
     }
   }, []);
 
-  const speak = useCallback((text: string) => {
+  const speak = useCallback((text: string, override?: Partial<TTSSettings>) => {
     if ('speechSynthesis' in window) {
       setIsSpeaking(true);
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = language;
-      
-      // Try to select a more natural voice if available (e.g., Google Português do Brasil)
-      const voices = window.speechSynthesis.getVoices();
-      const naturalVoice = voices.find(v => v.lang === language && (v.name.includes('Google') || v.name.includes('Luciana') || v.name.includes('Felipe')));
-      if (naturalVoice) {
-        utterance.voice = naturalVoice;
-      }
 
-      // Adjust pitch and rate for more natural prosody
-      utterance.pitch = 1.0;
-      utterance.rate = 1.1; // Slightly faster is often more natural for PT-BR
+      const settings: TTSSettings = { ...ttsSettings, ...override };
+
+      const selected = settings.voiceURI
+        ? voices.find(v => v.voiceURI === settings.voiceURI) || null
+        : null;
+      const best = selected || pickBestVoice(voices, language);
+      if (best) utterance.voice = best;
+
+      utterance.pitch = settings.pitch;
+      utterance.rate = settings.rate;
+      utterance.volume = settings.volume;
       
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
@@ -91,7 +155,7 @@ export const useVoice = ({ onTranscript, language = 'pt-BR' }: UseVoiceProps = {
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     }
-  }, [language]);
+  }, [language, ttsSettings, voices]);
 
   const cancelSpeech = useCallback(() => {
     if ('speechSynthesis' in window) {
@@ -108,6 +172,9 @@ export const useVoice = ({ onTranscript, language = 'pt-BR' }: UseVoiceProps = {
     stopListening,
     speak,
     cancelSpeech,
-    supported
+    supported,
+    voices,
+    ttsSettings,
+    setTTSSettings
   };
 };
