@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../_lib.php';
+require_once __DIR__ . '/../lib.php';
 
 $cfg = load_app_config();
 handle_cors(allowed_origins_from_config($cfg));
@@ -15,4 +15,3 @@ if ($token !== '') {
 }
 clear_session_cookie();
 send_json(200, ['ok' => true]);
-
