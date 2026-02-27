@@ -1,44 +1,89 @@
-import OpenAI from 'openai';
 import { Case, SimulationFeedback } from '../../types';
+import { callLLMProxy, LLMMessage } from './llmProxy';
 
-// Initialize OpenAI client
-// Note: In a real production app, this should be done in a backend proxy to hide the key.
-// For this prototype/local tool, we use the client-side approach with the key provided by the environment.
-// Ideally, use `import.meta.env.VITE_OPENAI_API_KEY`
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || 'sk-proj-****************************************************************', // Masked fallback
-  dangerouslyAllowBrowser: true // Required for client-side usage
-});
+let openAIFallbackClient: any | null = null;
+
+async function callOpenAIFallback(messages: LLMMessage[], wantJsonObject: boolean): Promise<string> {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('No OpenAI key configured for fallback');
+  }
+
+  if (!openAIFallbackClient) {
+    const mod: any = await import('openai');
+    const OpenAI = mod.default;
+    openAIFallbackClient = new OpenAI({
+      apiKey,
+      dangerouslyAllowBrowser: true
+    });
+  }
+
+  const body: any = {
+    model: 'gpt-4o-mini',
+    messages,
+    temperature: 0.7
+  };
+
+  if (wantJsonObject) {
+    body.response_format = { type: 'json_object' };
+  }
+
+  const response = await openAIFallbackClient.chat.completions.create(body);
+  return response.choices?.[0]?.message?.content || '';
+}
+
+const safeJsonParse = (value: string): any => {
+  const trimmed = value.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf('{');
+    const end = trimmed.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+    const aStart = trimmed.indexOf('[');
+    const aEnd = trimmed.lastIndexOf(']');
+    if (aStart !== -1 && aEnd !== -1 && aEnd > aStart) {
+      return JSON.parse(trimmed.slice(aStart, aEnd + 1));
+    }
+    throw new Error('Invalid JSON from LLM');
+  }
+};
 
 export const generateCaseWithAI = async (specialty: string, difficulty: string): Promise<Case> => {
   try {
-    const prompt = `
-      Crie um caso clínico detalhado para treinamento de médicos (Exame Revalida INEP) com as seguintes características:
-      - Especialidade: ${specialty}
-      - Dificuldade: ${difficulty}
-      - Formato: JSON estrito.
-      
-      Estrutura do JSON:
-      {
-        "title": "Título criativo do caso",
-        "description": "Descrição do cenário inicial (paciente chegando, queixa principal, sinais vitais iniciais)",
-        "expected_diagnosis": ["Diagnóstico Principal", "Diagnóstico Diferencial"],
-        "expected_conduct": ["Passo 1", "Passo 2", "Passo 3", "Passo 4"]
-      }
-      
-      O caso deve ser realista, desafiador e seguir os protocolos do Ministério da Saúde do Brasil.
-    `;
+    const prompt = `Crie um caso clínico detalhado para treinamento de médicos (Exame Revalida INEP) com as seguintes características:
+- Especialidade: ${specialty}
+- Dificuldade: ${difficulty}
+- Formato: JSON estrito.
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" }
-    });
+Estrutura do JSON:
+{
+  "title": "Título criativo do caso",
+  "description": "Descrição do cenário inicial (paciente chegando, queixa principal, sinais vitais iniciais)",
+  "expected_diagnosis": ["Diagnóstico Principal", "Diagnóstico Diferencial"],
+  "expected_conduct": ["Passo 1", "Passo 2", "Passo 3", "Passo 4"]
+}
 
-    const content = response.choices[0].message.content;
-    if (!content) throw new Error("No content generated");
+O caso deve ser realista, desafiador e seguir os protocolos do Ministério da Saúde do Brasil.`;
 
-    const data = JSON.parse(content);
+    const messages: LLMMessage[] = [{ role: 'user', content: prompt }];
+    let content = '';
+    try {
+      const res = await callLLMProxy({
+        messages,
+        response_format: 'json',
+        mode: 'free'
+      });
+      content = res.content;
+    } catch {
+      content = await callOpenAIFallback(messages, true);
+    }
+
+    if (!content) throw new Error('No content generated');
+
+    const data = safeJsonParse(content);
 
     return {
       id: `ai-gen-${Date.now()}`,
@@ -85,17 +130,22 @@ export const generateFeedbackWithAI = async (
       ]
     `;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" }
-    });
+    const messages: LLMMessage[] = [{ role: 'user', content: prompt }];
+    let content = '';
+    try {
+      const res = await callLLMProxy({
+        messages,
+        response_format: 'text',
+        mode: 'free'
+      });
+      content = res.content;
+    } catch {
+      content = await callOpenAIFallback(messages, false);
+    }
 
-    const content = response.choices[0].message.content;
-    if (!content) throw new Error("No feedback generated");
+    if (!content) throw new Error('No feedback generated');
 
-    // Handle potential wrapper object in response
-    const parsed = JSON.parse(content);
+    const parsed = safeJsonParse(content);
     return Array.isArray(parsed) ? parsed : parsed.feedback || parsed.criteria || [];
 
   } catch (error) {
@@ -119,12 +169,18 @@ export const explainTopicWithAI = async (topicTitle: string, context: string): P
       Use formatação Markdown para deixar o texto legível (negrito, tópicos).
     `;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    return response.choices[0].message.content || "Não foi possível gerar a explicação.";
+    const messages: LLMMessage[] = [{ role: 'user', content: prompt }];
+    try {
+      const { content } = await callLLMProxy({
+        messages,
+        response_format: 'text',
+        mode: 'free'
+      });
+      return content || 'Não foi possível gerar a explicação.';
+    } catch {
+      const content = await callOpenAIFallback(messages, false);
+      return content || 'Não foi possível gerar a explicação.';
+    }
   } catch (error) {
     console.error("Error explaining topic:", error);
     return "Erro ao conectar com o tutor IA. Verifique sua conexão.";
